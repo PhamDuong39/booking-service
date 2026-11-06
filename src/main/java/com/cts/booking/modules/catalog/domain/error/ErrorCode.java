@@ -1,0 +1,15 @@
+package com.cts.booking.modules.catalog.domain.error;
+
+public enum ErrorCode {
+    VALIDATION_FAILED,
+    MESSAGE_NOT_READABLE,
+    METHOD_NOT_ALLOWED,
+    UNSUPPORTED_MEDIA_TYPE,
+    MISSING_PARAMETER,
+    TYPE_MISMATCH,
+    ROUTE_NOT_FOUND,
+    UNAUTHORIZED,
+    FORBIDDEN,
+    NOT_IMPLEMENTED,
+    INTERNAL_ERROR
+}
