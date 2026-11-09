@@ -1,0 +1,8 @@
+databaseChangeLog:
+  # Explicit order keeps schema creation ahead of tables that use it.
+  - include:
+      file: changesets/001-schema.sql
+      relativeToChangelogFile: true
+  - include:
+      file: changesets/002-liquibase-demo.sql
+      relativeToChangelogFile: true

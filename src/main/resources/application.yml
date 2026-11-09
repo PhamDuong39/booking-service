@@ -1,0 +1,38 @@
+spring:
+  application:
+    name: booking-service
+  datasource:
+    url: jdbc:postgresql://${BOOKING_DB_HOST:localhost}:${BOOKING_DB_PORT:5432}/${BOOKING_DB_NAME:booking_db}
+    username: ${BOOKING_DB_USER:booking}
+    password: ${BOOKING_DB_PASSWORD}
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+    # Tracking tables stay in public, which exists before the booking schema.
+    default-schema: public
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate.default_schema: booking
+  data:
+    redis:
+      host: ${BOOKING_REDIS_HOST:localhost}
+      port: ${BOOKING_REDIS_PORT:6379}
+  kafka:
+    bootstrap-servers: ${BOOKING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+server:
+  port: ${BOOKING_HTTP_PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+  endpoint:
+    health:
+      show-details: never
+  metrics:
+    tags:
+      application: ${spring.application.name}

@@ -1,0 +1,198 @@
+# Local infrastructure for Booking. Run the Java application from your IDE.
+# Setup: copy .env.example to .env and set a local database password.
+# Start core + monitoring: docker compose up -d --wait
+# Add workflows + identity: docker compose --profile workflow --profile identity up -d --wait
+# Stop: docker compose down (preserves the database volume).
+# Logs: docker compose logs -f postgres
+# Schema migrations are owned by Liquibase, not Docker initialization scripts.
+
+services:
+  postgres:
+    # Pin the server version so development does not change with the latest tag.
+    image: postgres:17.9
+    restart: unless-stopped
+    environment:
+      # These initialize the database and login only when the data volume is empty.
+      POSTGRES_DB: ${BOOKING_DB_NAME:-booking_db}
+      POSTGRES_USER: ${BOOKING_DB_USER:-booking}
+      POSTGRES_PASSWORD: ${BOOKING_DB_PASSWORD:?Set BOOKING_DB_PASSWORD in .env}
+    ports:
+      - "5432:5432"
+    volumes:
+      # Keep database files when the container is recreated or stopped.
+      - booking_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      # Double dollars defer variable expansion to the container environment.
+      test: ["CMD-SHELL", 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    # Allow active connections time to close during shutdown.
+    stop_grace_period: 30s
+
+  redis:
+    # Shared cache/rate-limit state; AOF persists writes across container restarts.
+    image: redis:7.4.12-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - booking_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  kafka:
+    # One local KRaft broker/controller; ZooKeeper is unnecessary.
+    image: apache/kafka:4.1.2
+    restart: unless-stopped
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENERS: INTERNAL://:29092,EXTERNAL://:9092,CONTROLLER://:9093
+      # IDE clients receive localhost; other containers receive Compose DNS.
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://localhost:${BOOKING_KAFKA_PORT:-9092}
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      # A single broker requires replication factors of one.
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+    volumes:
+      - booking_kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092 --list >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 30s
+
+  prometheus:
+    # Scrape Actuator metrics from the IDE application and retain 15 days.
+    image: prom/prometheus:latest
+    container_name: booking-prometheus
+    ports:
+      - "9090:9090"
+    extra_hosts:
+      # Resolve the host computer from containers, including on Linux.
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - booking_prometheus_data:/prometheus
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:9090/-/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  grafana:
+    # Provision Prometheus as the default data source and load a starter dashboard.
+    image: grafana/grafana:latest
+    depends_on:
+      - prometheus
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    ports:
+      - "3000:3000"
+    volumes:
+      - booking_grafana_data:/var/lib/grafana
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./docker/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  temporal:
+    # Optional local workflow server + built-in UI with a persistent SQLite store.
+    # This is the development server, not a production Temporal deployment.
+    image: temporalio/temporal:latest
+    profiles: ["workflow"]
+    restart: unless-stopped
+    command: ["server", "start-dev", "--ip", "0.0.0.0", "--db-filename", "/var/lib/temporal/temporal.db"]
+    ports:
+      - "127.0.0.1:${BOOKING_TEMPORAL_PORT:-7233}:7233"
+      - "127.0.0.1:${BOOKING_TEMPORAL_UI_PORT:-8233}:8233"
+    volumes:
+      - booking_temporal_data:/var/lib/temporal
+    healthcheck:
+      test: ["CMD", "temporal", "operator", "cluster", "health", "--address", "localhost:7233"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  keycloak-db:
+    # Identity owns a separate database; Booking migrations never manage it.
+    image: postgres:17.9
+    profiles: ["identity"]
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?Set KEYCLOAK_DB_PASSWORD in .env}
+    volumes:
+      - booking_keycloak_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "keycloak", "-d", "keycloak"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  keycloak:
+    # Local identity provider. Realm/client/role setup is a separate integration step.
+    image: quay.io/keycloak/keycloak:26.4.7
+    profiles: ["identity"]
+    restart: unless-stopped
+    command: ["start-dev"]
+    depends_on:
+      keycloak-db:
+        condition: service_healthy
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?Set KEYCLOAK_DB_PASSWORD in .env}
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USER:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?Set KEYCLOAK_ADMIN_PASSWORD in .env}
+      KC_HEALTH_ENABLED: "true"
+    ports:
+      - "127.0.0.1:${BOOKING_KEYCLOAK_PORT:-8180}:8080"
+    healthcheck:
+      # Keycloak's image has no curl; use Bash's built-in TCP support.
+      test:
+        - CMD
+        - bash
+        - -ec
+        - >-
+          exec 3<>/dev/tcp/localhost/9000;
+          printf 'GET /health/ready HTTP/1.0\r\n\r\n' >&3;
+          read -r response <&3;
+          [[ "$$response" == *"200"* ]]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+
+# Named volumes survive docker compose down; down -v deletes their data.
+volumes:
+  booking_postgres_data:
+  booking_redis_data:
+  booking_kafka_data:
+  booking_prometheus_data:
+  booking_grafana_data:
+  booking_temporal_data:
+  booking_keycloak_db_data:

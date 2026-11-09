@@ -1,0 +1,5 @@
+# The migration demo needs PostgreSQL only. Redis is not used by a use case yet.
+management:
+  health:
+    redis:
+      enabled: false
