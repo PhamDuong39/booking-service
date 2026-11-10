@@ -1,10 +1,11 @@
 # Local infrastructure for Booking. Run the Java application from your IDE.
 # Setup: copy .env.example to .env and set a local database password.
-# Start core + monitoring: docker compose up -d --wait
-# Add workflows + identity: docker compose --profile workflow --profile identity up -d --wait
+# Start core + monitoring: docker compose up -d
+# Wait for DB preparation: docker compose run --rm postgres-init
+# Add workflows + identity: docker compose --profile workflow --profile identity up -d
 # Stop: docker compose down (preserves the database volume).
 # Logs: docker compose logs -f postgres
-# Schema migrations are owned by Liquibase, not Docker initialization scripts.
+# postgres-init prepares the database/schema; Liquibase owns application tables.
 
 services:
   postgres:
@@ -12,8 +13,11 @@ services:
     image: postgres:17.9
     restart: unless-stopped
     environment:
-      # These initialize the database and login only when the data volume is empty.
-      POSTGRES_DB: ${BOOKING_DB_NAME:-booking_db}
+      # Bootstrap the login and maintenance DB on an empty volume.
+      # postgres-init creates the application DB after this server is healthy.
+      POSTGRES_DB: postgres
+      # Used by manual psql checks; not a PostgreSQL server initialization option.
+      BOOKING_DB_NAME: ${BOOKING_DB_NAME:-booking_db}
       POSTGRES_USER: ${BOOKING_DB_USER:-booking}
       POSTGRES_PASSWORD: ${BOOKING_DB_PASSWORD:?Set BOOKING_DB_PASSWORD in .env}
     ports:
@@ -30,6 +34,26 @@ services:
       start_period: 10s
     # Allow active connections time to close during shutdown.
     stop_grace_period: 30s
+
+
+  postgres-init:
+    # One-shot client: depends on the server, but never replaces/stops it.
+    image: postgres:17.9
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGHOST: postgres
+      PGPORT: 5432
+      PGDATABASE: postgres
+      PGUSER: ${BOOKING_DB_USER:-booking}
+      PGPASSWORD: ${BOOKING_DB_PASSWORD:?Set BOOKING_DB_PASSWORD in .env}
+      PGCONNECT_TIMEOUT: 10
+      BOOKING_DB_NAME: ${BOOKING_DB_NAME:-booking_db}
+    volumes:
+      - ./docker/postgres/init.sh:/opt/booking/init.sh:ro
+    entrypoint: ["/bin/sh", "/opt/booking/init.sh"]
 
   redis:
     # Shared cache/rate-limit state; AOF persists writes across container restarts.

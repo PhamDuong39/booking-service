@@ -7,17 +7,23 @@ The Java application runs from the IDE. Compose runs its infrastructure.
 ```bash
 cp .env.example .env
 # Replace all example passwords in .env, then:
-docker compose up -d --wait
+docker compose up -d
+docker compose run --rm postgres-init
 ```
 
 If `.env` already exists, merge the new keys from `.env.example` instead of overwriting it.
 Compose reads `.env` automatically; an IDE does not. Supply the corresponding variables
 in your application's run configuration when application configuration is implemented.
 
+Wait for `postgres-init` to exit successfully before starting the IDE application.
+The initializer creates the database/schema if missing and explicitly sets the database
+default isolation to `read committed`; it does not create application tables. PostgreSQL
+continues running after the client exits. Repeating initialization preserves existing data.
+
 Core services and monitoring start by default. Enable optional integrations with:
 
 ```bash
-docker compose --profile workflow --profile identity up -d --wait
+docker compose --profile workflow --profile identity up -d
 ```
 
 Inspect and stop the complete stack:
@@ -37,6 +43,7 @@ or the existing Grafana/Keycloak administrator; change those through the running
 | Service | Purpose | From the IDE / host | From another Compose container |
 | --- | --- | --- | --- |
 | PostgreSQL | Authoritative booking, inventory, order and ticket state | `localhost:5432`, database `booking_db` | `postgres:5432` |
+| postgres-init | One-shot database/schema preparation after PostgreSQL is healthy | Exits after completion | Connects to `postgres:5432` |
 | Redis | Shared cache and rate-limit state | `localhost:6379` | `redis:6379` |
 | Kafka | Outbox publication and payment/refund events | `localhost:9092` | `kafka:29092` |
 | Prometheus | Collect and retain metrics | http://localhost:9090 | `prometheus:9090` |

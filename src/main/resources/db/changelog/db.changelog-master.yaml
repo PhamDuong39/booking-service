@@ -1,5 +1,6 @@
 databaseChangeLog:
-  # Explicit order keeps schema creation ahead of tables that use it.
+  # postgres-init creates the database and booking schema before Spring Boot.
+  # Create LLD tables in foreign-key dependency order before the demo migration.
   - include:
       file: changesets/001-schema.sql
       relativeToChangelogFile: true

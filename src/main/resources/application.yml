@@ -7,7 +7,7 @@ spring:
     password: ${BOOKING_DB_PASSWORD}
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.yaml
-    # Tracking tables stay in public, which exists before the booking schema.
+    # Tracking tables stay in public; postgres-init prepares the booking schema.
     default-schema: public
   jpa:
     open-in-view: false
