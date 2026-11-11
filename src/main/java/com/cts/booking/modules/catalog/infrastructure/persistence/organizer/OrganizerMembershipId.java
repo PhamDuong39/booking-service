@@ -1,4 +1,4 @@
-package com.cts.booking.modules.catalog.infrastructure.persistence.organizermembership;
+package com.cts.booking.modules.catalog.infrastructure.persistence.organizer;
 
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
