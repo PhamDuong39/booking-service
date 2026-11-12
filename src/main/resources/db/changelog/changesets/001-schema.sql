@@ -1,5 +1,6 @@
 --liquibase formatted sql
---changeset booking:001-create-organizer
+--changeset 00001-initial-booking:1.0_create_tables
+
 CREATE TABLE booking.organizer (
     id UUID NOT NULL,
     code VARCHAR(40) NOT NULL,
@@ -29,17 +30,6 @@ CREATE TABLE booking.organizer_membership (
     CONSTRAINT ck_organizer_membership_version CHECK (version >= 0)
 );
 
-
--- Application updates must increment version and set updated_at, per LLD section 2.3.
---rollback DROP TABLE booking.organizer_membership;
---rollback DROP TABLE booking.organizer;
-
-
--- Remaining LLD section 2.5 tables: secondary indexes and business checks/unique
--- constraints are deferred. Composite UNIQUE constraints below exist only to
--- support the specified foreign keys; PostgreSQL creates their backing indexes.
-
---changeset booking:001-create-venue
 CREATE TABLE booking.venue (
     id UUID NOT NULL,
     code VARCHAR(40) NOT NULL,
@@ -54,9 +44,6 @@ CREATE TABLE booking.venue (
     CONSTRAINT pk_venue PRIMARY KEY (id)
 );
 
---rollback DROP TABLE booking.venue;
-
---changeset booking:001-create-venue-gate
 CREATE TABLE booking.venue_gate (
     id UUID NOT NULL,
     venue_id UUID NOT NULL,
@@ -72,9 +59,6 @@ CREATE TABLE booking.venue_gate (
         REFERENCES booking.venue (id) ON DELETE RESTRICT
 );
 
---rollback DROP TABLE booking.venue_gate;
-
---changeset booking:001-create-concert
 CREATE TABLE booking.concert (
     id UUID NOT NULL,
     organizer_id UUID NOT NULL,
@@ -95,9 +79,6 @@ CREATE TABLE booking.concert (
         REFERENCES booking.organizer (id) ON DELETE RESTRICT
 );
 
---rollback DROP TABLE booking.concert;
-
---changeset booking:001-create-performance
 CREATE TABLE booking.performance (
     id UUID NOT NULL,
     concert_id UUID NOT NULL,
@@ -122,9 +103,6 @@ CREATE TABLE booking.performance (
         REFERENCES booking.venue (id) ON DELETE RESTRICT
 );
 
---rollback DROP TABLE booking.performance;
-
---changeset booking:001-create-performance-gate
 CREATE TABLE booking.performance_gate (
     performance_id UUID NOT NULL,
     venue_id UUID NOT NULL,
@@ -140,9 +118,6 @@ CREATE TABLE booking.performance_gate (
         REFERENCES booking.venue_gate (id, venue_id) ON DELETE RESTRICT
 );
 
---rollback DROP TABLE booking.performance_gate;
-
---changeset booking:001-create-performance-assignment
 CREATE TABLE booking.performance_assignment (
     performance_id UUID NOT NULL,
     subject VARCHAR(128) NOT NULL,
@@ -156,9 +131,6 @@ CREATE TABLE booking.performance_assignment (
         REFERENCES booking.performance (id) ON DELETE RESTRICT
 );
 
---rollback DROP TABLE booking.performance_assignment;
-
---changeset booking:001-create-seat-section
 CREATE TABLE booking.seat_section (
     id UUID NOT NULL,
     performance_id UUID NOT NULL,
@@ -174,9 +146,6 @@ CREATE TABLE booking.seat_section (
         REFERENCES booking.performance (id) ON DELETE RESTRICT
 );
 
---rollback DROP TABLE booking.seat_section;
-
---changeset booking:001-create-booking-order
 CREATE TABLE booking.booking_order (
     id UUID NOT NULL,
     order_code VARCHAR(40) NOT NULL,
@@ -215,9 +184,6 @@ CREATE TABLE booking.booking_order (
         REFERENCES booking.performance (id, concert_id) ON DELETE RESTRICT
 );
 
---rollback DROP TABLE booking.booking_order;
-
---changeset booking:001-create-performance-seat
 CREATE TABLE booking.performance_seat (
     id UUID NOT NULL,
     performance_id UUID NOT NULL,
@@ -246,9 +212,6 @@ CREATE TABLE booking.performance_seat (
         REFERENCES booking.booking_order (id, performance_id, hold_id) ON DELETE RESTRICT
 );
 
---rollback DROP TABLE booking.performance_seat;
-
---changeset booking:001-create-order-item
 CREATE TABLE booking.order_item (
     id UUID NOT NULL,
     order_id UUID NOT NULL,
@@ -267,9 +230,6 @@ CREATE TABLE booking.order_item (
         REFERENCES booking.performance_seat (id, performance_id) ON DELETE RESTRICT
 );
 
---rollback DROP TABLE booking.order_item;
-
---changeset booking:001-create-payment-projection
 CREATE TABLE booking.payment_projection (
     attempt_id UUID NOT NULL,
     order_id UUID NOT NULL,
@@ -289,9 +249,6 @@ CREATE TABLE booking.payment_projection (
         REFERENCES booking.booking_order (id) ON DELETE RESTRICT
 );
 
---rollback DROP TABLE booking.payment_projection;
-
---changeset booking:001-create-refund-projection
 CREATE TABLE booking.refund_projection (
     refund_id UUID NOT NULL,
     attempt_id UUID NOT NULL,
@@ -309,9 +266,6 @@ CREATE TABLE booking.refund_projection (
         REFERENCES booking.payment_projection (attempt_id) ON DELETE RESTRICT
 );
 
---rollback DROP TABLE booking.refund_projection;
-
---changeset booking:001-create-ticket
 CREATE TABLE booking.ticket (
     id UUID NOT NULL,
     ticket_code VARCHAR(40) NOT NULL,
@@ -337,9 +291,6 @@ CREATE TABLE booking.ticket (
         REFERENCES booking.performance_seat (id, performance_id) ON DELETE RESTRICT
 );
 
---rollback DROP TABLE booking.ticket;
-
---changeset booking:001-create-ticket-checkin
 CREATE TABLE booking.ticket_checkin (
     ticket_id UUID NOT NULL,
     performance_id UUID NOT NULL,
@@ -355,9 +306,6 @@ CREATE TABLE booking.ticket_checkin (
         REFERENCES booking.performance_gate (performance_id, gate_id) ON DELETE RESTRICT
 );
 
---rollback DROP TABLE booking.ticket_checkin;
-
---changeset booking:001-create-ticket-email-grant
 CREATE TABLE booking.ticket_email_grant (
     id UUID NOT NULL,
     order_id UUID NOT NULL,
@@ -375,9 +323,6 @@ CREATE TABLE booking.ticket_email_grant (
         REFERENCES booking.booking_order (id) ON DELETE RESTRICT
 );
 
---rollback DROP TABLE booking.ticket_email_grant;
-
---changeset booking:001-create-support-operation
 CREATE TABLE booking.support_operation (
     id UUID NOT NULL,
     order_id UUID NOT NULL,
@@ -396,9 +341,6 @@ CREATE TABLE booking.support_operation (
         REFERENCES booking.booking_order (id) ON DELETE RESTRICT
 );
 
---rollback DROP TABLE booking.support_operation;
-
---changeset booking:001-create-idempotency-record
 CREATE TABLE booking.idempotency_record (
     actor VARCHAR(160) NOT NULL,
     operation VARCHAR(64) NOT NULL,
@@ -412,9 +354,6 @@ CREATE TABLE booking.idempotency_record (
     CONSTRAINT pk_idempotency_record PRIMARY KEY (actor, operation, request_key)
 );
 
---rollback DROP TABLE booking.idempotency_record;
-
---changeset booking:001-create-workflow-dispatch
 CREATE TABLE booking.workflow_dispatch (
     id UUID NOT NULL,
     order_id UUID NOT NULL,
@@ -437,9 +376,6 @@ CREATE TABLE booking.workflow_dispatch (
         REFERENCES booking.booking_order (id) ON DELETE RESTRICT
 );
 
---rollback DROP TABLE booking.workflow_dispatch;
-
---changeset booking:001-create-outbox-event
 CREATE TABLE booking.outbox_event (
     event_id UUID NOT NULL,
     aggregate_type VARCHAR(40) NOT NULL,
@@ -463,9 +399,6 @@ CREATE TABLE booking.outbox_event (
     CONSTRAINT pk_outbox_event PRIMARY KEY (event_id)
 );
 
---rollback DROP TABLE booking.outbox_event;
-
---changeset booking:001-create-inbox-event
 CREATE TABLE booking.inbox_event (
     consumer_name VARCHAR(80) NOT NULL,
     event_id UUID NOT NULL,
@@ -479,9 +412,6 @@ CREATE TABLE booking.inbox_event (
     CONSTRAINT pk_inbox_event PRIMARY KEY (consumer_name, event_id)
 );
 
---rollback DROP TABLE booking.inbox_event;
-
---changeset booking:001-create-audit-log
 CREATE TABLE booking.audit_log (
     id UUID NOT NULL,
     actor_type VARCHAR(16) NOT NULL,
@@ -501,4 +431,27 @@ CREATE TABLE booking.audit_log (
     CONSTRAINT pk_audit_log PRIMARY KEY (id)
 );
 
+-- Rollback: drop dependent tables before their referenced tables.
 --rollback DROP TABLE booking.audit_log;
+--rollback DROP TABLE booking.inbox_event;
+--rollback DROP TABLE booking.outbox_event;
+--rollback DROP TABLE booking.workflow_dispatch;
+--rollback DROP TABLE booking.idempotency_record;
+--rollback DROP TABLE booking.support_operation;
+--rollback DROP TABLE booking.ticket_email_grant;
+--rollback DROP TABLE booking.ticket_checkin;
+--rollback DROP TABLE booking.ticket;
+--rollback DROP TABLE booking.refund_projection;
+--rollback DROP TABLE booking.payment_projection;
+--rollback DROP TABLE booking.order_item;
+--rollback DROP TABLE booking.performance_seat;
+--rollback DROP TABLE booking.booking_order;
+--rollback DROP TABLE booking.seat_section;
+--rollback DROP TABLE booking.performance_assignment;
+--rollback DROP TABLE booking.performance_gate;
+--rollback DROP TABLE booking.performance;
+--rollback DROP TABLE booking.concert;
+--rollback DROP TABLE booking.venue_gate;
+--rollback DROP TABLE booking.venue;
+--rollback DROP TABLE booking.organizer_membership;
+--rollback DROP TABLE booking.organizer;
