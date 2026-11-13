@@ -1,6 +1,12 @@
 package com.cts.booking.modules.catalog.infrastructure.persistence.venue;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -35,7 +41,9 @@ public class VenueJpaEntity {
     private String city;
 
     @Column(name = "timezone", nullable = false, length = 64)
-    private String timezone;
+    private String timezone = "Asia/Ho_Chi_Minh";
+
+    @Column(name = "active", nullable = false)
     private boolean active = true;
 
     @CreationTimestamp(source = SourceType.DB)
