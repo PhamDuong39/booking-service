@@ -1,0 +1,9 @@
+databaseChangeLog:
+  # postgres-init creates the database and booking schema before Spring Boot.
+  # Create LLD tables in foreign-key dependency order before the demo migration.
+  - include:
+      file: changesets/001-schema.sql
+      relativeToChangelogFile: true
+  - include:
+      file: changesets/002-liquibase-demo.sql
+      relativeToChangelogFile: true

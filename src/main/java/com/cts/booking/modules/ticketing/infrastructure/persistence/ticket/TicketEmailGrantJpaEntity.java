@@ -1,0 +1,63 @@
+package com.cts.booking.modules.ticketing.infrastructure.persistence.ticket;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import jakarta.persistence.Version;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.SourceType;
+import org.hibernate.annotations.UpdateTimestamp;
+
+import java.time.Instant;
+import java.util.UUID;
+
+@Entity
+@Table(name = "ticket_email_grant", schema = "booking")
+@Getter
+@Setter
+@NoArgsConstructor
+public class TicketEmailGrantJpaEntity {
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "id", nullable = false, updatable = false)
+    private UUID id;
+
+    @Column(name = "order_id", nullable = false)
+    private UUID orderId;
+
+    @Column(name = "business_key", nullable = false, length = 160)
+    private String businessKey;
+
+    @Column(name = "owner_subject", nullable = false, length = 128)
+    private String ownerSubject;
+
+    @Column(name = "recipient_email", nullable = false, length = 320)
+    private String recipientEmail;
+
+    @Column(name = "purpose", nullable = false, length = 24)
+    private String purpose;
+
+    @Column(name = "active", nullable = false)
+    private boolean active = true;
+
+    @Column(name = "requested_by", length = 128)
+    private String requestedBy;
+
+    @CreationTimestamp(source = SourceType.DB)
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
+
+    @UpdateTimestamp(source = SourceType.DB)
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt;
+
+    @Version
+    @Column(name = "version", nullable = false)
+    private Long version;
+}

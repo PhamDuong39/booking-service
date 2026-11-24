@@ -1,5 +1,8 @@
 plugins {
     id 'java'
+    id 'jacoco'
+    id 'org.springframework.boot' version '4.0.9'
+    id 'io.spring.dependency-management' version '1.1.7'
 }
 
 group = 'com.cts.booking'
@@ -9,9 +12,89 @@ repositories {
     mavenCentral()
 }
 
+// Versions for libraries outside Spring Boot's dependency management.
+ext {
+    openapiVersion = '3.0.0'
+    shedlockVersion = '7.11.0'
+    temporalVersion = '1.40.0'
+}
+
 dependencies {
-    testImplementation platform('org.junit:junit-bom:6.0.0')
-    testImplementation 'org.junit.jupiter:junit-jupiter'
+    // HTTP API: Spring MVC controllers and the embedded Tomcat server.
+    implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+    // Validate request DTOs with Jakarta Bean Validation annotations.
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    // Generate the OpenAPI specification and serve Swagger UI.
+    implementation "org.springdoc:springdoc-openapi-starter-webmvc-ui:$openapiVersion"
+
+    // Persistence: Spring Data repositories, Hibernate, and transaction support.
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    // Apply versioned database schema migrations at startup.
+    implementation 'org.springframework.boot:spring-boot-starter-liquibase'
+    // Connect to the PostgreSQL database that owns booking and seat state.
+    runtimeOnly 'org.postgresql:postgresql'
+
+    // Security filters and authorization rules.
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    // Validate JWT access tokens issued by Keycloak using OAuth2 resource server support.
+    implementation 'org.springframework.boot:spring-boot-starter-security-oauth2-resource-server'
+    // Low-level JOSE/JWT utilities; version managed by Spring Boot.
+    implementation 'com.nimbusds:nimbus-jose-jwt'
+
+    // Spring's cache abstraction for application caching.
+    implementation 'org.springframework.boot:spring-boot-starter-cache'
+    // Optional in-process cache provider for local caches.
+    implementation 'com.github.ben-manes.caffeine:caffeine'
+    // Redis access for shared caches and rate-limit state.
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+
+    // Publish outbox events and consume payment/refund events through Kafka.
+    implementation 'org.springframework.boot:spring-boot-starter-kafka'
+    // Temporal workflow client and workers for booking Saga orchestration.
+    implementation "io.temporal:temporal-sdk:$temporalVersion"
+
+    // Coordinate @Scheduled jobs across multiple service instances.
+    implementation "net.javacrumbs.shedlock:shedlock-spring:$shedlockVersion"
+    // Store scheduled-job locks in the application's relational database.
+    implementation "net.javacrumbs.shedlock:shedlock-provider-jdbc-template:$shedlockVersion"
+
+    // Expose health checks and application metrics through management endpoints.
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    // Export Micrometer metrics in Prometheus format.
+    runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
+
+    // Make Lombok annotations available without packaging Lombok at runtime.
+    compileOnly 'org.projectlombok:lombok'
+    // Generate production code from Lombok annotations.
+    annotationProcessor 'org.projectlombok:lombok'
+    // Generate IDE metadata for custom @ConfigurationProperties classes.
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+
+    // Common test tools: JUnit Jupiter, assertions, mocking, and Spring test support.
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    // Test health checks, metrics, and management endpoints.
+    testImplementation 'org.springframework.boot:spring-boot-starter-actuator-test'
+    // Test JPA repositories and persistence mappings.
+    testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
+    // Test Liquibase schema migrations.
+    testImplementation 'org.springframework.boot:spring-boot-starter-liquibase-test'
+    // Test authentication, roles, and authorization rules.
+    testImplementation 'org.springframework.boot:spring-boot-starter-security-test'
+    // Test MVC controllers and HTTP responses with MockMvc.
+    testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+    // Integrate container connection details with Spring Boot test configuration.
+    testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+    // Manage test container lifecycles through JUnit Jupiter annotations.
+    testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
+    // Run persistence and migration integration tests against real PostgreSQL.
+    testImplementation 'org.testcontainers:testcontainers-postgresql'
+    // Test Temporal workflows with an in-memory test environment and time skipping.
+    testImplementation "io.temporal:temporal-testing:$temporalVersion"
+    // Make Lombok annotations available in test sources.
+    testCompileOnly 'org.projectlombok:lombok'
+    // Generate code from Lombok annotations in test sources.
+    testAnnotationProcessor 'org.projectlombok:lombok'
+    // Launch tests through the JUnit Platform.
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
