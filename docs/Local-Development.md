@@ -5,13 +5,13 @@ The Java application runs from the IDE. Compose runs its infrastructure.
 ## Start and stop
 
 ```bash
-cp .env.example .env
+cp .env .env
 # Replace all example passwords in .env, then:
 docker compose up -d
 docker compose run --rm postgres-init
 ```
 
-If `.env` already exists, merge the new keys from `.env.example` instead of overwriting it.
+If `.env` already exists, merge the new keys from `.env` instead of overwriting it.
 Compose reads `.env` automatically; an IDE does not. Supply the corresponding variables
 in your application's run configuration when application configuration is implemented.
 
@@ -95,7 +95,7 @@ Booking and are not included in this Compose stack.
 ## Validate configuration without starting containers
 
 ```bash
-docker compose --env-file .env.example --profile workflow --profile identity config --quiet
+docker compose --env-file .env --profile workflow --profile identity config --quiet
 ```
 
 Implementation references: [Kafka Docker networking](https://docs.docker.com/guides/kafka),

@@ -1,5 +1,5 @@
 # Local infrastructure for Booking. Run the Java application from your IDE.
-# Setup: copy .env.example to .env and set a local database password.
+# Setup: copy .env to .env and set a local database password.
 # Start core + monitoring: docker compose up -d
 # Wait for DB preparation: docker compose run --rm postgres-init
 # Add workflows + identity: docker compose --profile workflow --profile identity up -d

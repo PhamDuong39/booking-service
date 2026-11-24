@@ -37,10 +37,10 @@ java -version
 If `.env` does not exist yet:
 
 ```bash
-cp .env.example .env
+cp .env .env
 ```
 
-If `.env` already exists, preserve it and add any missing variables from `.env.example`.
+If `.env` already exists, preserve it and add any missing variables from `.env`.
 Replace example passwords with local values. For the commands below, keep `.env`
 compatible with Bash assignments: no spaces around `=`, and single-quote passwords
 containing spaces or shell metacharacters. `.env` is ignored by Git.
